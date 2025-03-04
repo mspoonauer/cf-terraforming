@@ -12,8 +12,8 @@ var resourceToEndpoint = map[string]map[string]string{
 		"get":  "/accounts/{account_id}/members/{member_id}",
 	},
 	"cloudflare_account_subscription": {
-		"list": "",
-		"get":  "/accounts/{account_id}/subscriptions",
+		"list": "/accounts/{account_id}/subscriptions",
+		"get":  "",
 	},
 	"cloudflare_account_token": {
 		"list": "/accounts/{account_id}/tokens",

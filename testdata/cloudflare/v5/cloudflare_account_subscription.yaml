@@ -1,0 +1,69 @@
+---
+version: 1
+interactions:
+  - request:
+      body: ""
+      form: {}
+      headers:
+        Content-Type:
+          - application/json
+      url: https://api.cloudflare.com/client/v4/accounts/f037e56e89293a057740de681ac9abbe/subscriptions
+      method: GET
+    response:
+      body: |
+          {
+              "errors": [],
+              "messages": [],
+              "result": [
+                  {
+                      "cancel_at_period_end": false,
+                      "component_values": [
+                          {
+                              "name": "image_resizing_requests",
+                              "value": 0
+                          }
+                      ],
+                      "created_date": "2021-11-10T18:22:50Z",
+                      "currency": "USD",
+                      "frequency": "monthly",
+                      "id": "6a7c6769e32f45bf974a5a8a520dc3b6",
+                      "price": 0,
+                      "product": {
+                          "billing": "",
+                          "duration": 0,
+                          "name": "prod_image_resizing",
+                          "period": "",
+                          "public_name": "Image Resizing"
+                      },
+                      "rate_plan": {
+                          "currency": "USD",
+                          "externally_managed": false,
+                          "id": "image_resizing_ent",
+                          "is_contract": true,
+                          "public_name": "Image Resizing Ent",
+                          "scope": "user",
+                          "sets": [
+                              "usage",
+                              "is_cloudflare",
+                              "public"
+                          ]
+                      },
+                      "trial": null
+                  }                  
+              ],
+              "result_info": {
+                "count": 1,
+                "page": 1,
+                "per_page": 20,
+                "total_count": 1
+              },
+              "success": true
+            }
+      headers:
+        Content-Type:
+          - application/json
+        Vary:
+          - Accept-Encoding
+      status: 200 OK
+      code: 200
+      duration: ""
