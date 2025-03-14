@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"embed"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
+	"text/template"
+	"time"
 
 	"github.com/MakeNowJust/heredoc/v2"
 	cfv0 "github.com/cloudflare/cloudflare-go"
@@ -20,6 +26,9 @@ import (
 )
 
 var (
+	//go:embed templates/cf-api-tmpl.yaml
+	templateFS embed.FS
+
 	// listOfString is an example representation of a key where the value is a
 	// list of string values.
 	//
@@ -44,6 +53,11 @@ var (
 
 	cloudflareTestZoneID    = "0da42c8d2132a9ddaf714f9e7c920711"
 	cloudflareTestAccountID = "f037e56e89293a057740de681ac9abbe"
+	V5Tests                 = map[string]struct {
+		IdentifierType   string
+		ResourceType     string
+		TestdataFilename string
+	}{}
 )
 
 func TestGenerate_writeAttrLine(t *testing.T) {
@@ -163,13 +177,13 @@ func TestResourceGeneration(t *testing.T) {
 		"cloudflare zone settings override":                  {identiferType: "zone", resourceType: "cloudflare_zone_settings_override", testdataFilename: "cloudflare_zone_settings_override"},
 		"cloudflare tiered cache":                            {identiferType: "zone", resourceType: "cloudflare_tiered_cache", testdataFilename: "cloudflare_tiered_cache"},
 
-		// "cloudflare access group (account)": {identiferType: "account", resourceType: "cloudflare_access_group", testdataFilename: "cloudflare_access_group_account"},
-		// "cloudflare access group (zone)":    {identiferType: "zone", resourceType: "cloudflare_access_group", testdataFilename: "cloudflare_access_group_zone"},
-		// "cloudflare custom certificates":    {identiferType: "zone", resourceType: "cloudflare_custom_certificates", testdataFilename: "cloudflare_custom_certificates"},
-		// "cloudflare custom SSL":             {identiferType: "zone", resourceType: "cloudflare_custom_ssl", testdataFilename: "cloudflare_custom_ssl"},
-		// "cloudflare load balancer pool":     {identiferType: "account", resourceType: "cloudflare_load_balancer_pool", testdataFilename: "cloudflare_load_balancer_pool"},
-		// "cloudflare worker cron trigger":    {identiferType: "zone", resourceType: "cloudflare_worker_cron_trigger", testdataFilename: "cloudflare_worker_cron_trigger"},
-		// "cloudflare zone":                   {identiferType: "zone", resourceType: "cloudflare_zone", testdataFilename: "cloudflare_zone"},
+		// "cloudflare access group (account)": {IdentifierType: "account", ResourceType: "cloudflare_access_group", TestdataFilename: "cloudflare_access_group_account"},
+		// "cloudflare access group (zone)":    {IdentifierType: "zone", ResourceType: "cloudflare_access_group", TestdataFilename: "cloudflare_access_group_zone"},
+		// "cloudflare custom certificates":    {IdentifierType: "zone", ResourceType: "cloudflare_custom_certificates", TestdataFilename: "cloudflare_custom_certificates"},
+		// "cloudflare custom SSL":             {IdentifierType: "zone", ResourceType: "cloudflare_custom_ssl", TestdataFilename: "cloudflare_custom_ssl"},
+		// "cloudflare load balancer pool":     {IdentifierType: "account", ResourceType: "cloudflare_load_balancer_pool", TestdataFilename: "cloudflare_load_balancer_pool"},
+		// "cloudflare worker cron trigger":    {IdentifierType: "zone", ResourceType: "cloudflare_worker_cron_trigger", TestdataFilename: "cloudflare_worker_cron_trigger"},
+		// "cloudflare zone":                   {IdentifierType: "zone", ResourceType: "cloudflare_zone", TestdataFilename: "cloudflare_zone"},
 	}
 
 	for name, tc := range tests {
@@ -250,7 +264,7 @@ func TestResourceGeneration(t *testing.T) {
 }
 
 func TestResourceGenerationV5(t *testing.T) {
-	t.Skip("skip until the v5 provider is fully supported")
+	//t.Skip("skip until the v5 provider is fully supported")
 
 	tests := map[string]struct {
 		identiferType    string
@@ -340,13 +354,13 @@ func TestResourceGenerationV5(t *testing.T) {
 		// "cloudflare ruleset (override remapping = enabled)":  {identiferType: "zone", resourceType: "cloudflare_ruleset", testdataFilename: "cloudflare_ruleset_override_remapping_enabled"},
 		// "cloudflare ruleset (rewrite to empty query string)": {identiferType: "zone", resourceType: "cloudflare_ruleset", testdataFilename: "cloudflare_ruleset_zone_rewrite_to_empty_query_parameter"},
 		// "cloudflare ruleset":                                 {identiferType: "zone", resourceType: "cloudflare_ruleset", testdataFilename: "cloudflare_ruleset_zone"},
-		"cloudflare stream":            {identiferType: "account", resourceType: "cloudflare_stream", testdataFilename: "cloudflare_stream"},
-		"cloudflare stream keys":       {identiferType: "account", resourceType: "cloudflare_stream_key", testdataFilename: "cloudflare_stream_key"},
-		"cloudflare stream live input": {identiferType: "account", resourceType: "cloudflare_stream_live_input", testdataFilename: "cloudflare_stream_live_input"},
-		"cloudflare stream webhook":    {identiferType: "account", resourceType: "cloudflare_stream_webhook", testdataFilename: "cloudflare_stream_webhook"},
-		"cloudflare snippets":          {identiferType: "zone", resourceType: "cloudflare_snippets", testdataFilename: "cloudflare_snippets"},
-		"cloudflare snippet rules":     {identiferType: "zone", resourceType: "cloudflare_snippet_rules", testdataFilename: "cloudflare_snippet_rules"},
-		"cloudflare tiered cache":      {identiferType: "zone", resourceType: "cloudflare_tiered_cache", testdataFilename: "cloudflare_tiered_cache"},
+		"cloudflare stream":                {identiferType: "account", resourceType: "cloudflare_stream", testdataFilename: "cloudflare_stream"},
+		"cloudflare stream keys":           {identiferType: "account", resourceType: "cloudflare_stream_key", testdataFilename: "cloudflare_stream_key"},
+		"cloudflare stream live input":     {identiferType: "account", resourceType: "cloudflare_stream_live_input", testdataFilename: "cloudflare_stream_live_input"},
+		"cloudflare stream webhook":        {identiferType: "account", resourceType: "cloudflare_stream_webhook", testdataFilename: "cloudflare_stream_webhook"},
+		"cloudflare snippets":              {identiferType: "zone", resourceType: "cloudflare_snippets", testdataFilename: "cloudflare_snippets"},
+		"cloudflare snippet rules":         {identiferType: "zone", resourceType: "cloudflare_snippet_rules", testdataFilename: "cloudflare_snippet_rules"},
+		"cloudflare tiered cache":          {identiferType: "zone", resourceType: "cloudflare_tiered_cache", testdataFilename: "cloudflare_tiered_cache"},
 		"cloudflare regional hostnames":    {identiferType: "zone", resourceType: "cloudflare_regional_hostname", testdataFilename: "cloudflare_regional_hostname"},
 		"cloudflare regional tiered cache": {identiferType: "zone", resourceType: "cloudflare_regional_tiered_cache", testdataFilename: "cloudflare_regional_tiered_cache"},
 		// "cloudflare spectrum application":                    {identiferType: "zone", resourceType: "cloudflare_spectrum_application", testdataFilename: "cloudflare_spectrum_application"},
@@ -391,6 +405,7 @@ func TestResourceGenerationV5(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
+			initTests(tc.resourceType)
 			// Reset the environment variables used in test to ensure we don't
 			// have both present at once.
 			viper.Set("zone", "")
@@ -448,7 +463,10 @@ func TestResourceGenerationV5(t *testing.T) {
 					},
 				))
 
-				output, _ = executeCommandC(rootCmd, "generate", "--resource-type", tc.resourceType, "--account", cloudflareTestAccountID)
+				output, err = executeCommandC(rootCmd, "generate", "--resource-type", tc.resourceType, "--account", cloudflareTestAccountID)
+				if err != nil {
+					log.Infof("Error: %s for resource %s", err, tc.resourceType)
+				}
 			} else {
 				viper.Set("zone", cloudflareTestZoneID)
 				api = cloudflare.NewClient(option.WithHTTPClient(
@@ -457,11 +475,205 @@ func TestResourceGenerationV5(t *testing.T) {
 					},
 				))
 
-				output, _ = executeCommandC(rootCmd, "generate", "--resource-type", tc.resourceType, "--zone", cloudflareTestZoneID)
+				output, err = executeCommandC(rootCmd, "generate", "--resource-type", tc.resourceType, "--zone", cloudflareTestZoneID)
+				if err != nil {
+					log.Infof("Error: %s for resource %s", err, tc.resourceType)
+				}
 			}
 
+			overwriteAndValidate(output)
 			expected := testDataFile("v5", tc.testdataFilename)
 			assert.Equal(t, strings.TrimRight(expected, "\n"), strings.TrimRight(output, "\n"))
 		})
 	}
+}
+
+type Yaml struct {
+	URL  string
+	Body string
+}
+
+func initTests(resourceType string) {
+	paths, ok := resourceToEndpoint[resourceType]
+	if !ok {
+		log.Fatalf("No endpoints for resource type %s", resourceType)
+	}
+	var endpoint string
+	endpoint, ok = paths["list"]
+	if !ok {
+		endpoint = paths["get"]
+	}
+	if endpoint == "" {
+		log.Fatalf("No Get/List operation for resource type %s", resourceType)
+	}
+	accountID = os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+	zoneID = os.Getenv("CLOUDFLARE_ZONE_ID")
+	if strings.Contains(endpoint, "{account_or_zone}") {
+		if accountID != "" {
+			endpoint = strings.Replace(endpoint, "/{account_or_zone}/{account_or_zone_id}/", "/accounts/{account_id}/", 1)
+		} else {
+			endpoint = strings.Replace(endpoint, "/{account_or_zone}/{account_or_zone_id}/", "/zones/{zone_id}/", 1)
+		}
+	}
+
+	// replace the URL placeholders with the actual values we have.
+	placeholderReplacer := strings.NewReplacer("{account_id}", accountID, "{zone_id}", zoneID)
+	endpoint = placeholderReplacer.Replace(endpoint)
+
+	c := newClient()
+	res := c.request(endpoint)
+	t := Yaml{
+		URL:  c.BaseURL + endpoint,
+		Body: string(res),
+	}
+	templatePath := "templates/cf-api-tmpl.yaml"
+
+	templateContent, err := templateFS.ReadFile(templatePath)
+	if err != nil {
+		fmt.Printf("Error reading embedded template file: %v\n", err)
+		os.Exit(1)
+	}
+
+	// Create and parse the template
+	tmpl, err := template.New(filepath.Base(templatePath)).Parse(string(templateContent))
+	if err != nil {
+		fmt.Printf("Error parsing template: %v\n", err)
+		os.Exit(1)
+	}
+
+	outputPath := fmt.Sprintf("../../../../testdata/cloudflare/v5/%s.yaml", resourceType)
+	// Create output file
+	outputFile, err := os.Create(outputPath)
+	if err != nil {
+		log.Fatalf("error creating output file %v\n", err)
+	}
+	defer outputFile.Close()
+	err = tmpl.Execute(outputFile, t)
+	if err != nil {
+		log.Fatalf("error executing template: %v\n", err)
+	}
+}
+
+func overwriteAndValidate(output string) {
+	path := fmt.Sprintf("../../../../testdata/terraform/v5/%s", resourceType)
+	if err := os.WriteFile(path+"/test.tf", []byte(output), 0644); err != nil {
+		log.Fatalf("error writing test.tf for %s", resourceType)
+	}
+	log.Printf("test.tf created for %s", resourceType)
+	tfValidate(path)
+}
+
+func tfValidate(path string) {
+	absoluteDir, err := filepath.Abs(path)
+	if err != nil {
+		fmt.Printf("Error resolving absolute path: %s\n", err)
+		return
+	}
+	err = os.Chdir(absoluteDir)
+	if err != nil {
+		fmt.Printf("Error changing directory: %s\n", err)
+		return
+	}
+
+	fmt.Printf("Changed directory to: %s\n", absoluteDir)
+
+	initCmd := exec.Command("terraform", "init")
+	initCmd.Stdout = os.Stdout
+	initCmd.Stderr = os.Stderr
+
+	fmt.Println("Running: terraform init")
+	err = initCmd.Run()
+	if err != nil {
+		fmt.Printf("Error running terraform init: %s\n", err)
+		return
+	}
+
+	validateCmd := exec.Command("terraform", "validate")
+	validateCmd.Stdout = os.Stdout
+	validateCmd.Stderr = os.Stderr
+
+	fmt.Println("Running: terraform validate")
+	err = validateCmd.Run()
+	if err != nil {
+		fmt.Printf("Error running terraform validate: %s\n", err)
+		return
+	}
+
+	fmt.Println("Terraform commands completed successfully")
+}
+
+type APIClient struct {
+	BaseURL    string
+	APIKey     string
+	Email      string
+	HTTPClient *http.Client
+}
+
+func newClient() *APIClient {
+	cfApiKey := os.Getenv("CLOUDFLARE_API_KEY")
+	email := os.Getenv("CLOUDFLARE_EMAIL")
+
+	if cfApiKey == "" {
+		log.Fatalf("API_KEY environment variable not set")
+	}
+
+	if email == "" {
+		log.Fatalf("API_EMAIL environment variable not set")
+	}
+
+	return &APIClient{
+		BaseURL: "https://api.cloudflare.com/client/v4",
+		APIKey:  cfApiKey,
+		Email:   email,
+		HTTPClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+}
+
+func (ac *APIClient) request(urlPath string) []byte {
+	fullURL := ac.BaseURL + urlPath
+	var bodyReader io.Reader
+
+	req, err := http.NewRequest(http.MethodGet, fullURL, bodyReader)
+	if err != nil {
+		log.Fatalf("Error creating request: %v\n", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Auth-Key", ac.APIKey)
+	req.Header.Set("X-Auth-Email", ac.Email)
+
+	resp, err := ac.HTTPClient.Do(req)
+	if err != nil {
+		log.Fatalf("Error executing request: %v\n", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Fatalf("Error reading response body: %v\n", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		fmt.Println(fmt.Sprintf("Err %+v", string(respBody)))
+		log.Fatalf("BAD request: %v\n URL %s", resp.Status, fullURL)
+	}
+
+	return respBody
+}
+
+func DirectoryExists(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			// Path does not exist
+			return false, nil
+		}
+		// Error occurred while checking the path
+		return false, err
+	}
+
+	// Path exists, check if it's a directory
+	return info.IsDir(), nil
 }
