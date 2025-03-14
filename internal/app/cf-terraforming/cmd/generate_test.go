@@ -53,11 +53,6 @@ var (
 
 	cloudflareTestZoneID    = "0da42c8d2132a9ddaf714f9e7c920711"
 	cloudflareTestAccountID = "f037e56e89293a057740de681ac9abbe"
-	V5Tests                 = map[string]struct {
-		IdentifierType   string
-		ResourceType     string
-		TestdataFilename string
-	}{}
 )
 
 func TestGenerate_writeAttrLine(t *testing.T) {
@@ -177,13 +172,13 @@ func TestResourceGeneration(t *testing.T) {
 		"cloudflare zone settings override":                  {identiferType: "zone", resourceType: "cloudflare_zone_settings_override", testdataFilename: "cloudflare_zone_settings_override"},
 		"cloudflare tiered cache":                            {identiferType: "zone", resourceType: "cloudflare_tiered_cache", testdataFilename: "cloudflare_tiered_cache"},
 
-		// "cloudflare access group (account)": {IdentifierType: "account", ResourceType: "cloudflare_access_group", TestdataFilename: "cloudflare_access_group_account"},
-		// "cloudflare access group (zone)":    {IdentifierType: "zone", ResourceType: "cloudflare_access_group", TestdataFilename: "cloudflare_access_group_zone"},
-		// "cloudflare custom certificates":    {IdentifierType: "zone", ResourceType: "cloudflare_custom_certificates", TestdataFilename: "cloudflare_custom_certificates"},
-		// "cloudflare custom SSL":             {IdentifierType: "zone", ResourceType: "cloudflare_custom_ssl", TestdataFilename: "cloudflare_custom_ssl"},
-		// "cloudflare load balancer pool":     {IdentifierType: "account", ResourceType: "cloudflare_load_balancer_pool", TestdataFilename: "cloudflare_load_balancer_pool"},
-		// "cloudflare worker cron trigger":    {IdentifierType: "zone", ResourceType: "cloudflare_worker_cron_trigger", TestdataFilename: "cloudflare_worker_cron_trigger"},
-		// "cloudflare zone":                   {IdentifierType: "zone", ResourceType: "cloudflare_zone", TestdataFilename: "cloudflare_zone"},
+		// "cloudflare access group (account)": {identiferType: "account", resourceType: "cloudflare_access_group", testdataFilename: "cloudflare_access_group_account"},
+		// "cloudflare access group (zone)":    {identiferType: "zone", resourceType: "cloudflare_access_group", testdataFilename: "cloudflare_access_group_zone"},
+		// "cloudflare custom certificates":    {identiferType: "zone", resourceType: "cloudflare_custom_certificates", testdataFilename: "cloudflare_custom_certificates"},
+		// "cloudflare custom SSL":             {identiferType: "zone", resourceType: "cloudflare_custom_ssl", testdataFilename: "cloudflare_custom_ssl"},
+		// "cloudflare load balancer pool":     {identiferType: "account", resourceType: "cloudflare_load_balancer_pool", testdataFilename: "cloudflare_load_balancer_pool"},
+		// "cloudflare worker cron trigger":    {identiferType: "zone", resourceType: "cloudflare_worker_cron_trigger", testdataFilename: "cloudflare_worker_cron_trigger"},
+		// "cloudflare zone":                   {identiferType: "zone", resourceType: "cloudflare_zone", testdataFilename: "cloudflare_zone"},
 	}
 
 	for name, tc := range tests {
